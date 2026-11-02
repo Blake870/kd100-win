@@ -1,0 +1,137 @@
+// kd100-win configuration. Saved changes are applied immediately.
+// Full reference: see "Configuration" in README.md.
+//
+// Button numbers (dial on top, dial centre button = 18 or "dial"):
+//   ┌────┬────┬────┬────┐
+//   │  0 │  1 │  2 │  3 │
+//   ├────┼────┼────┼────┤
+//   │  4 │  5 │  6 │  7 │
+//   ├────┼────┼────┼────┤
+//   │  8 │  9 │ 10 │ 11 │
+//   ├────┼────┼────┼────┤
+//   │ 12 │ 13 │ 14 │    │
+//   ├────┴────┼────┤ 15 │
+//   │   16    │ 17 │    │
+//   └─────────┴────┴────┘
+//
+// Actions:
+//   "ctrl+shift+z"        key combo, held while the button is held
+//   "keys:ctrl+a ctrl+c"  several combos in a row
+//   "text:Hello"          type text
+//   "wheel:down"          scroll (also up/left/right; "wheel:down:40" = smaller step, 120 = one notch)
+//   "mouse:left"          mouse button (left/right/middle/back/forward)
+//   "run:notepad.exe"     start a program, folder, file or URL; "run:https://..." opens the default
+//                         browser, "run:chrome https://..." a specific one
+//   "dial:next"           next dial mode ("dial:prev", or a mode name like "dial:Volume")
+//   "layer"               second layer while held ("layer:toggle" to switch it on/off)
+//   "none"                do nothing
+//
+// A button is either one action, or gestures:
+//   { "tap": "...", "double": "...", "hold": "...", "menu": "apps" }
+//   tap = short press, double = two quick presses, hold = held for holdMs,
+//   menu = hold the button and turn the dial to pick from a radial menu; release to run it.
+//
+// Profiles are chosen by the foreground app's process name (see the input monitor in the
+// tray menu). Buttons an app profile does not define fall back to the default profile.
+{
+  "showOsd": true,
+  "holdMs": 400,
+  "doubleMs": 300,
+
+  "menus": {
+    "apps": [
+      { "label": "Browser",      "action": "run:https://www.google.com" },
+      { "label": "YouTube",      "action": "run:https://www.youtube.com/feed/playlists" },
+      { "label": "Explorer",     "action": "run:explorer.exe" },
+      { "label": "Notepad",      "action": "run:notepad.exe" },
+      { "label": "Calculator",   "action": "run:calc.exe" },
+      { "label": "Task Manager", "action": "run:taskmgr.exe" },
+      { "label": "Settings",     "action": "run:ms-settings:" },
+      { "label": "Screenshot",   "action": "win+shift+s" }
+    ]
+  },
+
+  "profiles": [
+    {
+      "name": "Default",
+      "buttons": {
+        "0": { "tap": "ctrl+z", "menu": "apps" },
+        "1": "ctrl+shift+z",    "2": "ctrl+c",        "3": "ctrl+v",
+        "4": "ctrl+x",          "5": "ctrl+a",        "6": "ctrl+s",        "7": "ctrl+f",
+        "8": "run:explorer.exe",
+        "9": "run:https://www.youtube.com/feed/playlists",
+        "10": "media_prev",     "11": "volume_mute",
+        "12": "alt+left",       "13": "alt+right",    "14": "win+shift+s",  "15": "enter",
+        "16": "layer",          "17": "esc",
+        "dial": { "tap": "media_play_pause", "double": "media_next", "hold": "dial:next" }
+      },
+      "dial": [
+        { "name": "Volume",    "cw": "volume_up",    "ccw": "volume_down",  "acceleration": 2 },
+        { "name": "Scroll",    "cw": "wheel:down",   "ccw": "wheel:up",     "acceleration": 2 },
+        { "name": "Zoom",      "cw": "ctrl+equals",  "ccw": "ctrl+minus" },
+        { "name": "Undo/Redo", "cw": "ctrl+shift+z", "ccw": "ctrl+z" }
+      ],
+      "layer": {
+        "buttons": {
+          "0": "ctrl+shift+esc", "1": "win+e", "2": "win+v", "3": "run:notepad.exe",
+          "4": "win+d",          "5": "win+period"
+        },
+        "dial": [
+          { "name": "Horizontal scroll", "cw": "wheel:right", "ccw": "wheel:left", "acceleration": 2 }
+        ]
+      }
+    },
+    {
+      "name": "Premiere Pro",
+      "apps": [ "Adobe Premiere Pro" ],
+      "buttons": {
+        "0": "v",       "1": "c",            "2": "ctrl+k",  "3": "shift+delete",
+        "4": "q",       "5": "w",            "6": "i",       "7": "o",
+        "8": "j",       "9": "k",            "10": "l",      "11": "m",
+        "12": "ctrl+z", "13": "ctrl+shift+z", "14": "ctrl+s", "15": "space",
+        "16": "layer",  "17": "backslash",
+        "dial": "dial:next"
+      },
+      "dial": [
+        { "name": "Frames", "cw": "right",  "ccw": "left", "acceleration": 2 },
+        { "name": "Edits",  "cw": "down",   "ccw": "up" },
+        { "name": "Zoom",   "cw": "equals", "ccw": "minus", "acceleration": 1 }
+      ],
+      "layer": {
+        "buttons": {
+          "0": "a",      "1": "b",            "2": "n",       "3": "y",
+          "4": "ctrl+d", "5": "ctrl+shift+d", "6": "shift+i", "7": "shift+o",
+          "8": "ctrl+m", "9": "ctrl+shift+e"
+        },
+        "dial": [
+          { "name": "Jog 5 frames", "cw": "shift+right", "ccw": "shift+left" }
+        ]
+      }
+    },
+    {
+      "name": "Browser",
+      "apps": [ "chrome", "msedge", "firefox", "opera", "brave", "vivaldi", "browser" ],
+      "buttons": {
+        "0": { "tap": "alt+left", "menu": "apps" },
+        "1": "alt+right",      "2": "f5",         "3": "ctrl+t",
+        "4": "ctrl+shift+tab", "5": "ctrl+tab",   "6": "ctrl+w", "7": "ctrl+shift+t",
+        "8": "ctrl+l",         "9": "ctrl+f",     "10": "ctrl+d", "11": "ctrl+0",
+        "12": "home",          "13": "end",       "14": "f11",
+        "16": "layer"
+      },
+      "dial": [
+        { "name": "Scroll", "cw": "wheel:down",  "ccw": "wheel:up",       "acceleration": 3 },
+        { "name": "Volume", "cw": "volume_up",   "ccw": "volume_down",    "acceleration": 2 },
+        { "name": "Tabs",   "cw": "ctrl+tab",    "ccw": "ctrl+shift+tab" },
+        { "name": "Zoom",   "cw": "ctrl+equals", "ccw": "ctrl+minus" },
+        { "name": "Seek",   "cw": "right",       "ccw": "left" }
+      ],
+      "layer": {
+        "buttons": { "0": "ctrl+h", "1": "ctrl+j", "2": "f12" },
+        "dial": [
+          { "name": "Horizontal scroll", "cw": "wheel:right", "ccw": "wheel:left", "acceleration": 2 }
+        ]
+      }
+    }
+  ]
+}

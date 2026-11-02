@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <AssemblyName>kd100-win</AssemblyName>
+    <RootNamespace>Kd100Win</RootNamespace>
+    <Product>kd100-win</Product>
+    <Description>Open-source tray app for the Huion Keydial Mini KD100</Description>
+    <Version>0.1.0</Version>
+    <ApplicationIcon>..\..\assets\kd100-win.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!-- dotnet publish: one kd100-win.exe that needs the .NET 10 Desktop Runtime. -->
+  <PropertyGroup>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType Condition="'$(Configuration)' == 'Release'">embedded</DebugType>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <AllowedReferenceRelatedFileExtensions>.pdb</AllowedReferenceRelatedFileExtensions>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="HidSharp" Version="2.6.4" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\config.sample.json" LogicalName="config.sample.json" />
+    <EmbeddedResource Include="..\..\assets\kd100-win.ico" LogicalName="kd100-win.ico" />
+    <EmbeddedResource Include="UI\settings.html" LogicalName="settings.html" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Kd100Win.Tests" />
+  </ItemGroup>
+
+</Project>
