@@ -169,6 +169,10 @@ internal sealed class SettingsForm : Form
                     p.Title,
                     icon = p.Path == null ? null : IconResolver.ToDataUrl(IconResolver.ForTarget(p.Path)),
                 });
+            case "screens":
+                return WindowPlacer.Describe();
+            case "installedApps":
+                return InstalledApps.Get().Select(a => new { a.Name, a.Target, a.Exe });
             case "browsers":
                 return KnownBrowsers
                     .Select(b => (b.Exe, b.Label, Path: IconResolver.ResolveProgram(b.Exe)))

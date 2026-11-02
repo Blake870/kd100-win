@@ -27,6 +27,12 @@ Windows splits the composite device into these top-level collections
 | MI_02 | COL02 | `FF01` / `00` (vendor) | `0x08` | 5-byte **feature** report only. |
 | MI_02 | COL03 | `01` / `0E` (system multi-axis = Windows Radial Controller) | `0x11` | The dial in default mode (behaves like a Surface Dial). |
 
+That layout is for the **2.4 GHz receiver**. Over the **USB cable** the device enumerates
+slightly differently: MI_00 has two vendor collections (COL01 with the same 12-byte input
+report, COL02 another vendor collection) and MI_02 is a single radial-controller collection.
+The vendor-mode switch and the report format below are the same on both; when cable and
+receiver are both plugged in, both show up and can be read at the same time.
+
 ## Default ("no driver") mode
 
 Right after power-up / enumeration the KD100 behaves like a plain keyboard plus
@@ -140,6 +146,44 @@ sends one `E0` report with an empty bitmap.
 08 f1 01 01 00 01 00 00 00 00 00 00
 08 f1 01 01 00 02 00 00 00 00 00 00
 ```
+
+## Other indexed strings: the Huion command set
+
+Hooking the Huion driver (`HuionTabletCore.exe`, via Frida on `DeviceIoControl`) shows that it
+talks to the KD100 only through `IOCTL_HID_GET_INDEXED_STRING` (`0xB01E2`), i.e.
+`HidD_GetIndexedString`. No feature or output reports are sent. Reading a string index is
+how commands are sent; the reply is a short "string" whose bytes are the result.
+(The hook only saw handles of the KD100, so this covers everything the driver sent to it.)
+
+`HuionTabletCore.exe` loads `TabletSession.dll` and calls its `hntc_get_str_desc(index)`.
+Disassembling the core shows a command dispatcher (UI command → string index):
+
+| UI command | String indices (argument → index) | Query reply on a KD100 |
+|---|---|---|
+| — | `0xC8` (200): vendor mode on | `01 00 00 01` |
+| — | `0xD1`: query | 64 |
+| `0x20` / `0x21` | 0 → `0xCE`, 1 → `0xCF`, 2 → `0xD0` (query) | 0 |
+| `0x30` / `0x31` | 0 → `0xD4`, 1 → `0xD3` | `0xD3` → 260, `0xD4` → 4 |
+| `0x32` / `0x33` | 0 → `0xE7`, 1 → `0xE6` | — |
+| `0x40` / `0x41` | 0, 1 → `0xDE`, 2 → `0xDD` (query) | query fails |
+| `0x60` / `0x61` | −1 → `0xD8`, +1 → `0xD7`, 2 → `0xD9` (query) | 8; `D7`/`D8` reply 1 |
+| `0x70` / `0x71` | −1 → `0xDB`, +1 → `0xDA`, 2 → `0xDC` (query) | 15; `DA`/`DB` reply 1 |
+| `0xA0` / `0xB1` | 0 → `0xE3`, 1 → `0xE1`, 2 → `0xE2` (query) | query fails |
+| — | `0xE0`, `0xE4`, `0xE8` | `0xE0` fails |
+
+The UI sends `0xA0` from its "sleep time" control, so `0xE1`–`0xE3` are sleep settings;
+the KD100 does not answer the `0xE2` query, which fits the Huion app not showing sleep time
+for this device.
+
+**Experiment:** sending `0xDB` ×10 and `0xD8` ×4 (and later `0xDA` ×10, `0xD7` ×4) left
+the queried values (15 and 8) unchanged, but afterwards the dial behaved differently under
+the Huion driver (it zoomed), and the opposite steps did not undo that. The LED did not change.
+Under kd100-win this does not matter: in vendor mode the app decides what the dial does.
+
+No command for the LED was found. The battery level shown by the Huion app (90% at the time)
+is not any of the values above; where it comes from is still unknown. While the "dial
+sensitivity" slider was being moved in the Huion UI, the driver sent `0xD8`/`0xD7` and `0xDA`
+steps, so those two groups are most likely dial settings, not the LED.
 
 ## Coexistence with the Huion driver
 

@@ -21,7 +21,8 @@ internal static class ActionParser
             "text" => new TextAction(s[(colon + 1)..]) { Source = s },
             "wheel" => ParseWheel(arg, s),
             "mouse" => new MouseAction(ParseMouseButton(arg)) { Source = s },
-            "run" => ParseRun(arg, s),
+            "run" => ParseRun(arg, s, ""),
+            _ when prefix.StartsWith("run@") => ParseRun(arg, s, prefix[4..]),
             "dial" => arg.Length > 0 ? new DialModeAction(arg) { Source = s } : throw Error(s, "dial: needs next, prev or a mode name"),
             "layer" => arg.Equals("toggle", StringComparison.OrdinalIgnoreCase)
                 ? new LayerAction(true) { Source = s }
@@ -73,21 +74,33 @@ internal static class ActionParser
         _ => throw Error("mouse:" + arg, "mouse button must be left, right, middle, back or forward"),
     };
 
-    static RunAction ParseRun(string arg, string source)
+    /// <param name="options">After "run@": a monitor number and/or "max", comma-separated, e.g. "2,max".</param>
+    static RunAction ParseRun(string arg, string source, string options)
     {
         if (arg.Length == 0)
             throw Error(source, "run: needs a program");
+        int? screen = null;
+        bool maximize = false;
+        foreach (var option in options.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (option == "max")
+                maximize = true;
+            else if (int.TryParse(option, out int n) && n is >= 1 and <= 16)
+                screen = n;
+            else
+                throw Error(source, $"unknown run option \"{option}\" (use a monitor number and/or max, e.g. run@2,max:)");
+        }
         if (arg[0] == '"')
         {
             int end = arg.IndexOf('"', 1);
             if (end < 0)
                 throw Error(source, "missing closing quote");
-            return new RunAction(arg[1..end], arg[(end + 1)..].Trim()) { Source = source };
+            return new RunAction(arg[1..end], arg[(end + 1)..].Trim()) { Source = source, Screen = screen, Maximize = maximize };
         }
         int space = arg.IndexOf(' ');
         return space < 0
-            ? new RunAction(arg, "") { Source = source }
-            : new RunAction(arg[..space], arg[(space + 1)..].Trim()) { Source = source };
+            ? new RunAction(arg, "") { Source = source, Screen = screen, Maximize = maximize }
+            : new RunAction(arg[..space], arg[(space + 1)..].Trim()) { Source = source, Screen = screen, Maximize = maximize };
     }
 
     static FormatException Error(string action, string message) => new($"\"{action}\": {message}");

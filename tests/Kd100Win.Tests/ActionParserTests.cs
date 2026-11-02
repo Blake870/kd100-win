@@ -43,6 +43,16 @@ public class ActionParserTests
     }
 
     [Fact]
+    public void Run_on_a_chosen_screen()
+    {
+        var run = Assert.IsType<RunAction>(ActionParser.Parse("run@2,max:chrome https://youtube.com"));
+        Assert.Equal(("chrome", "https://youtube.com", 2, true), (run.File, run.Arguments, run.Screen, run.Maximize));
+        var plain = Assert.IsType<RunAction>(ActionParser.Parse("run:notepad.exe"));
+        Assert.Equal((null, false), (plain.Screen, plain.Maximize));
+        Assert.Throws<FormatException>(() => ActionParser.Parse("run@left:notepad.exe"));
+    }
+
+    [Fact]
     public void Layers_dial_mouse_none()
     {
         Assert.False(Assert.IsType<LayerAction>(ActionParser.Parse("layer")).Toggle);

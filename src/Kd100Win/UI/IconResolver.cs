@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using System.Text;
 using Kd100Win.Engine;
 using Microsoft.Win32;
 
@@ -72,8 +71,10 @@ internal static class IconResolver
     static Bitmap? FromTarget(string target)
     {
         target = Environment.ExpandEnvironmentVariables(target);
+        if (target.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
+            return ShellItemImage(target, 48);
         if (Uri.TryCreate(target, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
-            return DefaultBrowser() is { } browser ? ShellIcon(browser) : null;
+            return Platform.DefaultApps.Browser() is { } browser ? ShellIcon(browser) : null;
         return ResolveProgram(target) is { } path ? ShellIcon(path) : null;
     }
 
@@ -103,14 +104,53 @@ internal static class IconResolver
         return null;
     }
 
-    static string? DefaultBrowser()
+    /// <summary>Icon of a file, folder, shortcut or shell:AppsFolder item, with transparency.</summary>
+    public static Bitmap? ShellIcon(string path) => ShellItemImage(path, 48) ?? SmallShellIcon(path);
+
+    static Bitmap? ShellItemImage(string parsingName, int size)
     {
-        uint size = 1024;
-        var sb = new StringBuilder((int)size);
-        return AssocQueryString(0, ASSOCSTR_EXECUTABLE, "https", "open", sb, ref size) == 0 ? sb.ToString() : null;
+        var iid = typeof(IShellItemImageFactory).GUID;
+        if (SHCreateItemFromParsingName(parsingName, 0, ref iid, out var factory) != 0 || factory == null)
+            return null;
+        try
+        {
+            if (factory.GetImage(new SIZE { cx = size, cy = size }, SIIGBF_ICONONLY | SIIGBF_BIGGERSIZEOK, out nint hbitmap) != 0 || hbitmap == 0)
+                return null;
+            try
+            {
+                return WithAlpha(hbitmap);
+            }
+            finally
+            {
+                DeleteObject(hbitmap);
+            }
+        }
+        finally
+        {
+            Marshal.ReleaseComObject(factory);
+        }
     }
 
-    public static Bitmap? ShellIcon(string path)
+    /// <summary>Image.FromHbitmap drops the alpha channel; re-read the same pixels as premultiplied ARGB.</summary>
+    static Bitmap WithAlpha(nint hbitmap)
+    {
+        using var opaque = Image.FromHbitmap(hbitmap);
+        var rect = new Rectangle(0, 0, opaque.Width, opaque.Height);
+        var data = opaque.LockBits(rect, System.Drawing.Imaging.ImageLockMode.ReadOnly, opaque.PixelFormat);
+        try
+        {
+            if (Image.GetPixelFormatSize(opaque.PixelFormat) != 32)
+                return new Bitmap(opaque);
+            using var view = new Bitmap(data.Width, data.Height, data.Stride, System.Drawing.Imaging.PixelFormat.Format32bppPArgb, data.Scan0);
+            return new Bitmap(view);
+        }
+        finally
+        {
+            opaque.UnlockBits(data);
+        }
+    }
+
+    static Bitmap? SmallShellIcon(string path)
     {
         var info = new SHFILEINFO();
         if (SHGetFileInfo(path, 0, ref info, (uint)Marshal.SizeOf<SHFILEINFO>(), SHGFI_ICON | SHGFI_LARGEICON) == 0 || info.hIcon == 0)
@@ -126,9 +166,27 @@ internal static class IconResolver
         }
     }
 
+    const int SIIGBF_BIGGERSIZEOK = 0x1;
+    const int SIIGBF_ICONONLY = 0x4;
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct SIZE { public int cx, cy; }
+
+    [ComImport, Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IShellItemImageFactory
+    {
+        [PreserveSig]
+        int GetImage(SIZE size, int flags, out nint phbm);
+    }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
+    static extern int SHCreateItemFromParsingName(string path, nint bindContext, ref Guid riid, [MarshalAs(UnmanagedType.Interface)] out IShellItemImageFactory? item);
+
+    [DllImport("gdi32.dll")]
+    static extern bool DeleteObject(nint obj);
+
     const uint SHGFI_ICON = 0x100;
     const uint SHGFI_LARGEICON = 0x0;
-    const int ASSOCSTR_EXECUTABLE = 2;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     struct SHFILEINFO
@@ -146,6 +204,4 @@ internal static class IconResolver
     [DllImport("user32.dll")]
     static extern bool DestroyIcon(nint icon);
 
-    [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
-    static extern int AssocQueryString(int flags, int str, string assoc, string? extra, StringBuilder? output, ref uint size);
 }

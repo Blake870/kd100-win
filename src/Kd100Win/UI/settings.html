@@ -105,6 +105,8 @@ textarea { width: 100%; resize: vertical; min-height: 54px; }
 .key.sel { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent); }
 .key.pressed { transform: translateY(2px); border-bottom-width: 1px; background: var(--accent-soft); }
 .key.inherited .klabel { opacity: .5; font-style: italic; }
+.key.dragging { opacity: .35; }
+.key.drop-target { border-color: var(--accent); border-style: dashed; background: var(--accent-soft); }
 .key .num { position: absolute; top: 3px; left: 6px; font-size: 10px; color: var(--dim); }
 .key .klabel { font-size: 11.5px; line-height: 1.15; max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
 .key img { width: 22px; height: 22px; margin-bottom: 2px; }
@@ -134,6 +136,8 @@ textarea { width: 100%; resize: vertical; min-height: 54px; }
 .action .line > input[type=text] { flex: 1; min-width: 140px; }
 .action select.type { min-width: 170px; }
 .action .err { color: var(--danger); font-size: 12px; }
+.ico20 { width: 22px; height: 22px; flex: none; display: grid; place-items: center; }
+.ico20 img { width: 20px; height: 20px; }
 .recorder { min-width: 170px; flex: 1; border: 1px dashed var(--key-edge); border-radius: 8px; padding: 4px 6px; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; min-height: 32px; cursor: pointer; background: var(--panel); }
 .recorder:hover { border-color: var(--accent); }
 .recorder.rec { border-style: solid; border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
@@ -187,8 +191,8 @@ input[type=range] { width: 200px; accent-color: var(--accent); }
 .banner { background: var(--accent-soft); border: 1px solid var(--accent); color: var(--text); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; display: flex; gap: 10px; align-items: center; }
 
 /* popover */
-.popover { position: fixed; z-index: 50; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.25); padding: 10px; width: 340px; max-height: 420px; display: flex; flex-direction: column; gap: 8px; }
-.popover .list { overflow-y: auto; display: flex; flex-direction: column; }
+.popover { position: fixed; z-index: 50; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.25); padding: 10px; width: 340px; height: 430px; display: flex; flex-direction: column; gap: 8px; }
+.popover .list { overflow-y: auto; display: flex; flex-direction: column; flex: 1; }
 .popover .opt { display: flex; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 7px; cursor: pointer; }
 .popover .opt:hover { background: var(--panel2); }
 .popover .opt img, .popover .opt .noimg { width: 20px; height: 20px; flex: none; }
@@ -236,7 +240,10 @@ const I18N = {
     saved: "All changes saved", unsaved: "Unsaved changes", savedToast: "Saved and applied",
     defaultProfile: "Default", defaultHint: "Used in every app without its own profile. App profiles fall back to it for buttons they don't set.",
     apps: "Apps", addApp: "Add app", appsHint: "This profile turns on when one of these programs is in front.",
-    pickApp: "Running programs", typeApp: "…or type a process name, e.g. chrome", add: "Add",
+    pickApp: "Add a program to this profile", typeApp: "Search, or type a process name, e.g. chrome", add: "Add",
+    running: "Running now", installed: "Installed", chooseApp: "Choose app…", searchApps: "Search installed programs",
+    browseHint: "Browse for a file", onScreen: "On screen", anyScreen: "Wherever it opens", primary: "primary",
+    maximize: "Maximize", notConnected: "not connected", nothingFound: "Nothing found", enterToAdd: "Press Enter to add “{0}”",
     deleteProfile: "Delete profile", newProfile: "New profile", confirmDelete: "Delete “{0}”?",
     mainLayer: "Main layer", layer2: "Layer 2", layerHint: "Layer 2 is active while a button with the “Layer” action is held.",
     button: "Button", dialButton: "Dial button", clickKey: "Click a button or the dial on the picture, or press / turn it on your KD100.",
@@ -250,13 +257,13 @@ const I18N = {
     dialLayerHint: "Dial modes while Layer 2 is held. Leave empty to keep the main layer's modes.",
     dialInherited: "No own dial modes: Default's are used.", addMode: "+ Add mode", cw: "Clockwise", ccw: "Counter-clockwise",
     step: "Step", accel: "Acceleration", modeName: "Mode name", newMode: "New mode",
-    t_none: "Nothing", t_shortcut: "Key shortcut", t_seq: "Key sequence", t_text: "Type text", t_run: "Open program / site",
+    t_none: "Nothing", t_shortcut: "Key shortcut", t_seq: "Key sequence", t_text: "Type text", t_run: "Open program", t_url: "Open website", otherApp: "Other program…",
     t_media: "Media & volume", t_wheel: "Scroll", t_mouse: "Mouse button", t_dial: "Dial mode", t_layer: "Layer", t_custom: "Custom",
     record: "Click and press keys", recording: "Press keys… (click elsewhere to stop)", typeShortcut: "or type, e.g. ctrl+shift+z",
     winHint: "Windows grabs Win combos itself: switch Win on with the button, then record the rest (e.g. Shift+S).",
     seqHint: "Shortcuts separated by spaces, e.g. ctrl+a ctrl+c", textPh: "Text to type",
-    target: "Program, folder, file or https:// link", browse: "Browse…", openWith: "Open with", defaultBrowser: "Default browser",
-    args: "Arguments (optional)",
+    target: "Program, folder or file", browse: "Browse…", openWith: "Open in", defaultBrowser: "Default browser",
+    args: "Command-line arguments (optional)",
     m_media_play_pause: "Play / pause", m_media_next: "Next track", m_media_prev: "Previous track", m_media_stop: "Stop",
     m_volume_up: "Volume up", m_volume_down: "Volume down", m_volume_mute: "Mute",
     w_up: "Up", w_down: "Down", w_left: "Left", w_right: "Right", amount: "Amount (120 = one notch)",
@@ -280,13 +287,18 @@ const I18N = {
     live: "KD100 is sending input", idle: "Press a button on the KD100 to highlight it",
     ms: "ms", unsavedClose: "",
     shortcutUp: "Shortcut", layerKey: "Layer",
+    dragHint: "Drag a key onto another to swap them, hold Ctrl to copy.",
+    swapped: "Swapped {0} and {1}", copied: "Copied {0} to {1}",
   },
   ru: {
     profiles: "Профили", menus: "Круговые меню", general: "Общие", save: "Сохранить", revert: "Отменить",
     saved: "Все изменения сохранены", unsaved: "Есть несохранённые изменения", savedToast: "Сохранено и применено",
     defaultProfile: "По умолчанию", defaultHint: "Работает во всех программах без своего профиля. Профили программ берут отсюда кнопки, которые в них не заданы.",
     apps: "Программы", addApp: "Добавить программу", appsHint: "Профиль включается, когда одна из этих программ на переднем плане.",
-    pickApp: "Запущенные программы", typeApp: "…или введите имя процесса, например chrome", add: "Добавить",
+    pickApp: "Добавить программу в профиль", typeApp: "Поиск или имя процесса, например chrome", add: "Добавить",
+    running: "Запущены сейчас", installed: "Установлены", chooseApp: "Выбрать приложение…", searchApps: "Поиск по установленным программам",
+    browseHint: "Выбрать файл", onScreen: "На экране", anyScreen: "Где откроется", primary: "основной",
+    maximize: "Развернуть", notConnected: "не подключён", nothingFound: "Ничего не найдено", enterToAdd: "Нажмите Enter, чтобы добавить «{0}»",
     deleteProfile: "Удалить профиль", newProfile: "Новый профиль", confirmDelete: "Удалить «{0}»?",
     mainLayer: "Основной слой", layer2: "Слой 2", layerHint: "Слой 2 действует, пока зажата кнопка с действием «Слой».",
     button: "Кнопка", dialButton: "Кнопка колеса", clickKey: "Щёлкните кнопку или колесо на картинке — или нажмите кнопку / покрутите колесо на KD100.",
@@ -300,13 +312,13 @@ const I18N = {
     dialLayerHint: "Режимы колеса, пока зажат слой 2. Оставьте пустым, чтобы работали режимы основного слоя.",
     dialInherited: "Своих режимов нет: используются режимы профиля «По умолчанию».", addMode: "+ Добавить режим", cw: "По часовой", ccw: "Против часовой",
     step: "Шаг", accel: "Ускорение", modeName: "Название режима", newMode: "Новый режим",
-    t_none: "Ничего", t_shortcut: "Сочетание клавиш", t_seq: "Несколько сочетаний", t_text: "Ввести текст", t_run: "Открыть программу / сайт",
+    t_none: "Ничего", t_shortcut: "Сочетание клавиш", t_seq: "Несколько сочетаний", t_text: "Ввести текст", t_run: "Открыть программу", t_url: "Открыть сайт", otherApp: "Другая программа…",
     t_media: "Медиа и громкость", t_wheel: "Прокрутка", t_mouse: "Кнопка мыши", t_dial: "Режим колеса", t_layer: "Слой", t_custom: "Вручную",
     record: "Щёлкните и нажмите клавиши", recording: "Нажмите клавиши… (щёлкните мимо, чтобы закончить)", typeShortcut: "или введите, например ctrl+shift+z",
     winHint: "Сочетания с Win Windows перехватывает сама: включите Win кнопкой, затем запишите остальное (например Shift+S).",
     seqHint: "Сочетания через пробел, например ctrl+a ctrl+c", textPh: "Текст для ввода",
-    target: "Программа, папка, файл или ссылка https://", browse: "Обзор…", openWith: "Открыть в", defaultBrowser: "Браузере по умолчанию",
-    args: "Аргументы (необязательно)",
+    target: "Программа, папка или файл", browse: "Обзор…", openWith: "Открыть в", defaultBrowser: "Браузере по умолчанию",
+    args: "Параметры командной строки (необязательно)",
     m_media_play_pause: "Пауза / воспроизведение", m_media_next: "Следующий трек", m_media_prev: "Предыдущий трек", m_media_stop: "Стоп",
     m_volume_up: "Громче", m_volume_down: "Тише", m_volume_mute: "Без звука",
     w_up: "Вверх", w_down: "Вниз", w_left: "Влево", w_right: "Вправо", amount: "Величина (120 = один щелчок колёсика)",
@@ -330,6 +342,8 @@ const I18N = {
     live: "KD100 передаёт нажатия", idle: "Нажмите кнопку на KD100, чтобы выделить её",
     ms: "мс", unsavedClose: "",
     shortcutUp: "Сочетание", layerKey: "Слой",
+    dragHint: "Перетащите кнопку на другую, чтобы поменять их местами; с Ctrl — скопировать.",
+    swapped: "{0} и {1} поменялись местами", copied: "{0} скопирована в {1}",
   },
 };
 let lang = "en";
@@ -366,6 +380,9 @@ function mockCall(method, args) {
     case "validateAction": return { ok: true };
     case "processes": return [{ name: "chrome", title: "YouTube - Google Chrome" }, { name: "Adobe Premiere Pro", title: "Premiere Pro 2025" }, { name: "Telegram", title: "Telegram" }];
     case "browsers": return [{ exe: "chrome", label: "Google Chrome" }, { exe: "msedge", label: "Microsoft Edge" }];
+    case "screens": return [{ number: 1, width: 2560, height: 1440, primary: true }, { number: 2, width: 1920, height: 1080, primary: false }];
+    case "installedApps": return [{ name: "Telegram", target: "C:\\Users\\you\\Start Menu\\Telegram.lnk", exe: "Telegram" },
+      { name: "Calculator", target: "shell:AppsFolder\\Microsoft.WindowsCalculator_8wekyb3d8bbwe!App", exe: null }];
     case "browse": return "C:\\Program Files\\App\\app.exe";
     case "setAutostart": return args.on;
     default: return null;
@@ -373,7 +390,7 @@ function mockCall(method, args) {
 }
 
 // ---------- state ----------
-let config = null, saved = "", info = {}, browsers = [];
+let config = null, saved = "", info = {}, browsers = [], screens = [];
 let view = { kind: "profile", index: 0 };
 let selButton = null, layerTab = "main";
 let pressedMask = 0, liveTimer = 0;
@@ -412,10 +429,16 @@ function parseAction(s) {
   const i = s.indexOf(":");
   const pre = i > 0 ? s.slice(0, i).toLowerCase() : "";
   const arg = i > 0 ? s.slice(i + 1).trim() : "";
+  if (pre === "run" || pre.startsWith("run@")) {
+    const r = parseRun(arg);
+    const opts = pre.slice(4).split(",").map(o => o.trim()).filter(Boolean);
+    r.screen = opts.find(o => /^\d+$/.test(o)) ?? "";
+    r.max = opts.includes("max");
+    return r;
+  }
   switch (pre) {
     case "keys": return { type: "seq", value: arg };
     case "text": return { type: "text", value: s.slice(i + 1) };
-    case "run": return parseRun(arg);
     case "wheel": { const [dir, amt] = arg.split(":"); return { type: "wheel", dir: (dir || "down").toLowerCase(), amount: +amt || 120 }; }
     case "mouse": return { type: "mouse", value: arg.toLowerCase() };
     case "dial": return { type: "dial", value: arg };
@@ -438,10 +461,13 @@ function parseRun(arg) {
     const sp = arg.indexOf(" ");
     if (sp > 0) { file = arg.slice(0, sp); rest = arg.slice(sp + 1).trim(); }
   }
-  if (rest && /^https?:\/\//i.test(rest) && !file.includes("\\") && !/^https?:/i.test(file))
-    return { type: "run", target: rest, browser: file, args: "" };
-  return { type: "run", target: file, browser: "", args: rest };
+  if (/^https?:\/\//i.test(file)) return { type: "url", url: file, browser: "" };
+  if (rest && /^https?:\/\/\S+$/i.test(rest)) return { type: "url", url: rest, browser: file };
+  return { type: "run", target: file, args: rest };
 }
+
+const runPrefix = a => (a.screen || a.max) ? `run@${[a.screen, a.max && "max"].filter(Boolean).join(",")}:` : "run:";
+const quotePath = v => /\s/.test(v) && !v.startsWith('"') ? `"${v}"` : v;
 
 function buildAction(a) {
   switch (a.type) {
@@ -449,12 +475,12 @@ function buildAction(a) {
     case "shortcut": return a.value || "none";
     case "seq": return "keys:" + (a.value ?? "");
     case "text": return "text:" + (a.value ?? "");
-    case "run": {
-      const q = v => /\s/.test(v) && !v.startsWith('"') ? `"${v}"` : v;
-      if (!a.target) return "run:";
-      if (a.browser && /^https?:\/\//i.test(a.target)) return `run:${a.browser} ${a.target}`;
-      return "run:" + q(a.target) + (a.args ? " " + a.args : "");
-    }
+    case "run":
+      if (!a.target) return runPrefix(a);
+      return runPrefix(a) + quotePath(a.target) + (a.args ? " " + a.args : "");
+    case "url":
+      if (!a.url) return runPrefix(a);
+      return a.browser ? `${runPrefix(a)}${quotePath(a.browser)} ${a.url}` : runPrefix(a) + a.url;
     case "media": return a.value || "media_play_pause";
     case "wheel": return `wheel:${a.dir || "down"}` + (a.amount && +a.amount !== 120 ? `:${a.amount}` : "");
     case "mouse": return "mouse:" + (a.value || "left");
@@ -472,13 +498,23 @@ const prettyChord = c => c.split("+").map(k => keyLabel(k.trim().toLowerCase()))
 
 function summary(action) {
   const a = parseAction(action);
+  const text = baseSummary(a);
+  return (a.type === "run" || a.type === "url") && a.screen ? `${text} → 🖥${a.screen}` : text;
+}
+
+function baseSummary(a) {
   switch (a.type) {
     case "none": return "—";
     case "shortcut": return prettyChord(a.value);
     case "seq": return a.value.split(/\s+/).filter(Boolean).map(prettyChord).join(", ");
     case "text": return `“${a.value}”`;
+    case "url":
+      try { return new URL(a.url).hostname.replace(/^www\./, ""); } catch { return a.url; }
     case "run": {
-      if (/^https?:\/\//i.test(a.target)) { try { return new URL(a.target).hostname.replace(/^www\./, ""); } catch { return a.target; } }
+      if (/^shell:appsfolder\\/i.test(a.target)) {
+        const id = a.target.slice(17).split("!")[0].split("_")[0];
+        return id.split(".").pop() || id;
+      }
       const base = a.target.split(/[\\/]/).pop() || a.target;
       return base.replace(/\.(exe|lnk)$/i, "");
     }
@@ -493,7 +529,7 @@ function summary(action) {
 
 function runTarget(action) {
   const a = parseAction(action);
-  return a.type === "run" ? (a.browser && /^https?:/i.test(a.target) ? a.browser : a.target) : null;
+  return a.type === "run" ? a.target : a.type === "url" ? (a.browser || a.url) : null;
 }
 
 async function iconFor(target, isFile = false) {
@@ -647,7 +683,8 @@ function renderDevice(p) {
     h("div", { class: "legend" },
       h("span", {}, h("span", { class: "badge" }, "2×"), " ", t("double")),
       h("span", {}, h("span", { class: "badge hold" }, "⏱"), " ", t("hold")),
-      h("span", {}, h("span", { class: "badge menu" }, "◔"), " ", t("menu"))));
+      h("span", {}, h("span", { class: "badge menu" }, "◔"), " ", t("menu"))),
+    h("div", { class: "legend", style: "margin-top:4px" }, t("dragHint")));
 }
 
 function keyEl(p, b) {
@@ -656,7 +693,18 @@ function keyEl(p, b) {
   if (selButton === b) cls.push("sel");
   if ((pressedMask >> b) & 1) cls.push("pressed");
   if (from === "default") cls.push("inherited");
-  const el = h("div", { class: cls.join(" "), "data-b": b, onclick: e => { e.stopPropagation(); selButton = b; render(); } });
+  const el = h("div", { class: cls.join(" "), "data-b": b, draggable: "true", title: "",
+    onclick: e => { e.stopPropagation(); selButton = b; render(); },
+    ondragstart: e => { e.dataTransfer.setData("text/kd100-button", String(b)); e.dataTransfer.effectAllowed = "copyMove"; el.classList.add("dragging"); },
+    ondragend: () => { el.classList.remove("dragging"); document.querySelectorAll(".drop-target").forEach(x => x.classList.remove("drop-target")); },
+    ondragover: e => { if (!e.dataTransfer.types.includes("text/kd100-button")) return; e.preventDefault(); e.dataTransfer.dropEffect = e.ctrlKey ? "copy" : "move"; el.classList.add("drop-target"); },
+    ondragleave: () => el.classList.remove("drop-target"),
+    ondrop: e => {
+      e.preventDefault(); e.stopPropagation();
+      el.classList.remove("drop-target");
+      const from = +e.dataTransfer.getData("text/kd100-button");
+      if (Number.isInteger(from) && from !== b) moveButton(p, from, b, e.ctrlKey);
+    } });
   if (b !== 18) el.append(h("span", { class: "num" }, String(b)));
   const badges = h("span", { class: "badges" });
   if (binding?.double) badges.append(h("span", { class: "badge" }, "2×"));
@@ -670,6 +718,19 @@ function keyEl(p, b) {
   el.title = binding ? [tap && `${t("tap")}: ${summary(tap)}`, binding.double && `${t("double")}: ${summary(binding.double)}`,
     binding.hold && `${t("hold")}: ${summary(binding.hold)}`, binding.menu && `${t("menu")}: ${binding.menu}`].filter(Boolean).join("\n") : "";
   return el;
+}
+
+/** Swaps two buttons' settings (or copies with Ctrl) in the current profile and layer. */
+function moveButton(p, from, to, copy) {
+  const map = getButtons(p, layerTab);
+  const a = effective(p, layerTab, from).binding;
+  const b = effective(p, layerTab, to).binding;
+  writeButton(map, to, a ? { ...a } : null);
+  if (!copy) writeButton(map, from, b ? { ...b } : null);
+  selButton = to;
+  changed(true);
+  toast(copy ? t("copied", from === 18 ? t("dialButton") : from, to === 18 ? t("dialButton") : to)
+             : t("swapped", from === 18 ? t("dialButton") : from, to === 18 ? t("dialButton") : to));
 }
 
 function renderEditor(p) {
@@ -744,9 +805,9 @@ function menuPicker(value, onChange) {
 }
 
 // ----- action field -----
-const TYPES = ["none", "shortcut", "seq", "text", "run", "media", "wheel", "mouse", "dial", "layer", "custom"];
+const TYPES = ["none", "shortcut", "seq", "text", "run", "url", "media", "wheel", "mouse", "dial", "layer", "custom"];
 
-function actionField(value, onChange, profile) {
+function actionField(value, onChange, profile, options = {}) {
   let a = parseAction(value);
   const root = h("div", { class: "action" });
   const emit = () => { const s = buildAction(a); onChange(s); validate(s); };
@@ -765,7 +826,7 @@ function actionField(value, onChange, profile) {
     const ty = e.target.value;
     a = ty === "media" ? { type: ty, value: "media_play_pause" } : ty === "wheel" ? { type: ty, dir: "down", amount: 120 }
       : ty === "mouse" ? { type: ty, value: "left" } : ty === "dial" ? { type: ty, value: "next" } : ty === "layer" ? { type: ty, value: "hold" }
-      : ty === "run" ? { type: ty, target: "", browser: "", args: "" } : ty === "custom" ? { type: ty, value: buildAction(a) } : { type: ty, value: "" };
+      : ty === "run" ? { type: ty, target: "", args: "" } : ty === "url" ? { type: ty, url: "https://", browser: "" } : ty === "custom" ? { type: ty, value: buildAction(a) } : { type: ty, value: "" };
     emit(); body();
   } }, ...TYPES.map(ty => h("option", { value: ty }, t("t_" + ty))));
   typeSel.value = a.type;
@@ -810,25 +871,42 @@ function actionField(value, onChange, profile) {
         fields.append(h("textarea", { placeholder: t("textPh"), oninput: e => { a.value = e.target.value; emit(); } }, a.value ?? ""));
         break;
       case "run": {
-        const isUrl = () => /^https?:\/\//i.test(a.target);
-        const icon = h("span", { style: "width:20px;height:20px;display:grid;place-items:center" });
-        const showIcon = () => { icon.replaceChildren(); const tg = a.browser && isUrl() ? a.browser : a.target; if (tg) icon.append(iconImg(tg)); };
-        const target = h("input", { type: "text", value: a.target, placeholder: t("target"), oninput: e => { a.target = e.target.value.trim(); emit(); extra(); showIcon(); } });
-        const browse = h("button", { class: "btn", onclick: async () => { const f = await call("browse", { kind: "program" }); if (f) { a.target = f; target.value = f; emit(); extra(); showIcon(); } } }, t("browse"));
-        const more = h("div", { class: "line" });
-        function extra() {
-          more.replaceChildren();
-          if (isUrl()) {
-            const sel = h("select", { onchange: e => { a.browser = e.target.value; emit(); showIcon(); } },
-              h("option", { value: "" }, t("defaultBrowser")), ...browsers.map(br => h("option", { value: br.exe }, br.label)));
-            sel.value = a.browser ?? "";
-            more.append(h("span", { class: "hint" }, t("openWith")), sel);
-          } else if (a.target) {
-            more.append(h("input", { type: "text", value: a.args, placeholder: t("args"), oninput: e => { a.args = e.target.value; emit(); } }));
+        const icon = h("span", { class: "ico20" });
+        const showIcon = () => { icon.replaceChildren(); if (a.target) icon.append(iconImg(a.target)); };
+        const target = h("input", { type: "text", value: a.target, placeholder: t("target"), oninput: e => { a.target = e.target.value.trim(); emit(); showIcon(); } });
+        const browse = h("button", { class: "btn", title: t("browseHint"), onclick: async () => { const f = await call("browse", { kind: "program" }); if (f) { a.target = f; target.value = f; emit(); showIcon(); } } }, "…");
+        const choose = h("button", { class: "btn", onclick: e => pickProgram(e.currentTarget, app => {
+          a.target = app.target; a.args = ""; target.value = app.target; args.value = ""; emit(); showIcon();
+          options.onAppName?.(app.name);
+        }) }, t("chooseApp"));
+        const args = h("input", { type: "text", value: a.args, placeholder: t("args"), oninput: e => { a.args = e.target.value; emit(); } });
+        fields.append(h("div", { class: "line" }, choose), h("div", { class: "line" }, icon, target, browse), h("div", { class: "line" }, args), screenLine(a, emit));
+        showIcon();
+        break;
+      }
+      case "url": {
+        const icon = h("span", { class: "ico20" });
+        const showIcon = () => { icon.replaceChildren(); const tg = a.browser || a.url; if (tg) icon.append(iconImg(tg)); };
+        const url = h("input", { type: "text", value: a.url, placeholder: "https://www.youtube.com/playlist?list=…", oninput: e => { a.url = e.target.value.trim(); emit(); showIcon(); } });
+        const sel = h("select", { onchange: e => {
+          if (e.target.value === "\__pick__") {
+            e.target.value = a.browser ?? "";
+            pickProgram(e.target, app => { a.browser = app.target; drawSelect(); emit(); showIcon(); });
+            return;
           }
+          a.browser = e.target.value; emit(); showIcon();
+        } });
+        function drawSelect() {
+          const opts = [["", t("defaultBrowser")], ...browsers.map(b => [b.exe, b.label])];
+          if (a.browser && !opts.some(o => o[0].toLowerCase() === a.browser.toLowerCase()))
+            opts.push([a.browser, a.browser.split(/[\\/]/).pop().replace(/\.(exe|lnk)$/i, "")]);
+          opts.push(["\__pick__", t("otherApp")]);
+          sel.replaceChildren(...opts.map(([v, l]) => h("option", { value: v }, l)));
+          sel.value = opts.find(o => o[0].toLowerCase() === (a.browser ?? "").toLowerCase())?.[0] ?? "";
         }
-        fields.append(h("div", { class: "line" }, icon, target, browse), more);
-        extra(); showIcon();
+        drawSelect();
+        fields.append(h("div", { class: "line" }, icon, url), h("div", { class: "line" }, h("span", { class: "hint" }, t("openWith")), sel), screenLine(a, emit));
+        showIcon();
         break;
       }
       case "media":
@@ -861,6 +939,16 @@ function actionField(value, onChange, profile) {
   body();
   if (a.type !== "none") validate(buildAction(a));
   return root;
+}
+
+function screenLine(a, emit) {
+  const opts = [["", t("anyScreen")], ...screens.map(sc => [String(sc.number), `${sc.number} — ${sc.width}×${sc.height}${sc.primary ? ", " + t("primary") : ""}`])];
+  if (a.screen && !opts.some(o => o[0] === a.screen)) opts.push([a.screen, `${a.screen} — ${t("notConnected")}`]);
+  return h("div", { class: "line" },
+    h("span", { class: "hint" }, t("onScreen")),
+    select(opts, a.screen ?? "", v => { a.screen = v; emit(); }),
+    h("label", { class: "hint", style: "display:flex;gap:5px;align-items:center" },
+      h("input", { type: "checkbox", checked: !!a.max, onchange: e => { a.max = e.target.checked; emit(); } }), t("maximize")));
 }
 
 function select(options, value, onChange) {
@@ -990,20 +1078,84 @@ function renderDialModes(p) {
 // ----- app picker popover -----
 let popover = null;
 function closePopover() { popover?.remove(); popover = null; }
-async function pickApp(anchor, onPick) {
+/**
+ * A popover with a search box over sections of {name, sub, icon | iconTarget, ...}.
+ * With allowText, Enter adds the typed text when it matches nothing else.
+ */
+function listPopover(anchor, { title, placeholder, load, onPick, allowText }) {
   closePopover();
   const list = h("div", { class: "list" }, h("div", { class: "hint", style: "padding:6px" }, "…"));
-  const input = h("input", { type: "text", placeholder: t("typeApp"), onkeydown: e => { if (e.key === "Enter" && input.value.trim()) { onPick(input.value.trim().replace(/\.exe$/i, "")); closePopover(); } } });
-  popover = h("div", { class: "popover" }, h("div", { class: "hint" }, t("pickApp")), list,
-    h("div", { class: "row" }, input, h("button", { class: "btn", onclick: () => { if (input.value.trim()) { onPick(input.value.trim().replace(/\.exe$/i, "")); closePopover(); } } }, t("add"))));
+  let sections = [];
+  const typed = () => input.value.trim().replace(/\.exe$/i, "");
+  const pickText = () => { if (allowText && typed()) { onPick({ name: typed(), value: typed() }); closePopover(); } };
+  const input = h("input", { type: "text", placeholder, oninput: draw, onkeydown: e => {
+    if (e.key === "Escape") closePopover();
+    if (e.key !== "Enter") return;
+    const opts = list.querySelectorAll(".opt");
+    if (opts.length === 1 || (opts.length && !allowText)) opts[0].click(); else pickText();
+  } });
+  const observer = new IntersectionObserver(entries => {
+    for (const en of entries) {
+      if (!en.isIntersecting) continue;
+      const img = en.target;
+      observer.unobserve(img);
+      iconFor(img.dataset.target).then(url => { if (url) { img.src = url; img.style.visibility = "visible"; } });
+    }
+  }, { root: list });
+  function draw() {
+    const q = input.value.trim().toLowerCase();
+    const kids = [];
+    for (const sec of sections) {
+      const items = sec.items.filter(it => !q || it.name.toLowerCase().includes(q) || (it.sub ?? "").toLowerCase().includes(q));
+      if (!items.length) continue;
+      if (sec.title) kids.push(h("div", { class: "hint", style: "padding:8px 8px 2px;font-weight:600" }, sec.title));
+      for (const it of items.slice(0, 300)) {
+        let img;
+        if (it.icon) img = h("img", { src: it.icon });
+        else if (it.iconTarget) { img = h("img", { "data-target": it.iconTarget, style: "visibility:hidden" }); observer.observe(img); }
+        else img = h("span", { class: "noimg" });
+        kids.push(h("div", { class: "opt", onclick: () => { onPick(it); closePopover(); } }, img,
+          h("div", { class: "t" }, h("div", {}, it.name), it.sub ? h("div", { class: "s" }, it.sub) : null)));
+      }
+    }
+    if (!kids.length) kids.push(h("div", { class: "hint", style: "padding:8px" }, allowText && q ? t("enterToAdd", input.value.trim()) : t("nothingFound")));
+    list.replaceChildren(...kids);
+  }
+  popover = h("div", { class: "popover" }, h("div", { class: "hint" }, title), input, list,
+    allowText ? h("div", { class: "row" }, h("span", { class: "spacer" }), h("button", { class: "btn small", onclick: pickText }, t("add"))) : null);
   document.body.append(popover);
   const r = anchor.getBoundingClientRect();
-  popover.style.left = Math.min(r.left, innerWidth - 360) + "px";
-  popover.style.top = Math.min(r.bottom + 6, innerHeight - 430) + "px";
+  popover.style.left = Math.max(8, Math.min(r.left, innerWidth - 360)) + "px";
+  popover.style.top = Math.max(8, Math.min(r.bottom + 6, innerHeight - 440)) + "px";
   input.focus();
-  const procs = await call("processes").catch(() => []);
-  list.replaceChildren(...procs.map(pr => h("div", { class: "opt", onclick: () => { onPick(pr.name); closePopover(); } },
-    pr.icon ? h("img", { src: pr.icon }) : h("span", { class: "noimg" }), h("div", { class: "t" }, h("div", {}, pr.name), h("div", { class: "s" }, pr.title)))));
+  Promise.resolve(load()).then(loaded => { sections = loaded; draw(); });
+}
+
+let installedCache = null;
+const installedApps = () => installedCache ??= call("installedApps").catch(() => []);
+
+/** For profiles: running programs first, then installed programs whose exe is known. */
+function pickApp(anchor, onPick) {
+  listPopover(anchor, {
+    title: t("pickApp"), placeholder: t("typeApp"), allowText: true,
+    onPick: it => onPick(it.value),
+    load: async () => {
+      const [procs, apps] = await Promise.all([call("processes").catch(() => []), installedApps()]);
+      return [
+        { title: t("running"), items: procs.map(p => ({ name: p.name, sub: p.title, icon: p.icon, value: p.name })) },
+        { title: t("installed"), items: apps.filter(a => a.exe).map(a => ({ name: a.name, sub: a.exe + ".exe", iconTarget: a.target, value: a.exe })) },
+      ];
+    },
+  });
+}
+
+/** For "run:" actions: every Start-menu program, desktop and Store. */
+function pickProgram(anchor, onPick) {
+  listPopover(anchor, {
+    title: t("chooseApp"), placeholder: t("searchApps"),
+    onPick: it => onPick(it.app),
+    load: async () => [{ items: (await installedApps()).map(a => ({ name: a.name, iconTarget: a.target, app: a })) }],
+  });
 }
 document.addEventListener("mousedown", e => { if (popover && !popover.contains(e.target)) closePopover(); });
 
@@ -1040,12 +1192,15 @@ function renderMenu(main) {
       if (tg) iconFor(tg, !!it.icon).then(url => { if (url) iconBox.replaceChildren(h("img", { src: url })); });
     };
     drawIcon();
+    const labelInput = h("input", { type: "text", value: it.label ?? "", placeholder: t("label"), style: "font-weight:600", oninput: e => { it.label = e.target.value; changed(); preview(); drawIcon(); } });
     const iconInput = h("input", { type: "text", value: it.icon ?? "", placeholder: t("icon"), oninput: e => { it.icon = e.target.value.trim() || undefined; changed(); drawIcon(); preview(); } });
     list.append(h("div", { class: "item" + (i === selItem ? " sel" : ""), onclick: () => { if (view.item !== i) { view.item = i; selItem = i; list.querySelectorAll(".item").forEach((x, j) => x.classList.toggle("sel", j === i)); preview(); } } },
       iconBox,
       h("div", { class: "action" },
-        h("input", { type: "text", value: it.label ?? "", placeholder: t("label"), style: "font-weight:600", oninput: e => { it.label = e.target.value; changed(); preview(); drawIcon(); } }),
-        actionField(it.action ?? "", v => { it.action = v; changed(); drawIcon(); preview(); }),
+        labelInput,
+        actionField(it.action ?? "", v => { it.action = v; changed(); drawIcon(); preview(); }, null, {
+          onAppName: name => { if (!it.label || it.label === t("newItem")) { it.label = name; labelInput.value = name; changed(); preview(); drawIcon(); } },
+        }),
         h("div", { class: "line" }, iconInput, h("button", { class: "btn small", onclick: async () => { const f = await pickIcon(); if (f) { it.icon = f; iconInput.value = f; changed(); drawIcon(); preview(); } } }, t("browse")))),
       h("div", { class: "tools" },
         h("button", { class: "icon-btn", onclick: e => { e.stopPropagation(); move(-1); } }, "↑"),
@@ -1209,6 +1364,7 @@ async function save() {
 async function reload() {
   info = await call("init");
   browsers = await call("browsers").catch(() => []);
+  screens = await call("screens").catch(() => []);
   config = info.config ?? {};
   config.profiles ??= [];
   config.menus ??= {};

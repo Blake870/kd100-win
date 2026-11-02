@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Kd100Win.Input;
+using Kd100Win.Platform;
 
 namespace Kd100Win.Engine;
 
@@ -95,22 +96,52 @@ internal sealed class MouseAction(MouseButtons button) : KdAction
     public override void Release(IActionHost host) => InputSender.MouseButton(Button, down: false);
 }
 
-/// <summary>"run:notepad.exe" / "run:\"C:\\path with spaces\\app.exe\" --flag".</summary>
+/// <summary>
+/// "run:notepad.exe" / "run:\"C:\path with spaces\app.exe\" --flag" / "run:https://..." / "run:chrome https://...".
+/// "run@2,max:..." opens the program's window on monitor 2, maximized.
+/// </summary>
 internal sealed class RunAction(string file, string arguments) : KdAction
 {
+    static readonly string[] BrowserNames = ["chrome", "msedge", "edge", "firefox", "opera", "brave", "vivaldi", "browser", "yandex"];
+
     public string File { get; } = file;
     public string Arguments { get; } = arguments;
 
+    /// <summary>1-based monitor, left to right; null = wherever the program opens.</summary>
+    public int? Screen { get; init; }
+    public bool Maximize { get; init; }
+
     public override void Press(IActionHost host)
     {
+        bool place = Screen != null || Maximize;
+        var (file, args) = place ? InNewWindow() : (File, Arguments);
         try
         {
-            Process.Start(new ProcessStartInfo(File, Arguments) { UseShellExecute = true })?.Dispose();
+            var before = place ? WindowPlacer.Snapshot() : null;
+            Process.Start(new ProcessStartInfo(file, args) { UseShellExecute = true })?.Dispose();
+            if (before != null)
+                WindowPlacer.PlaceNextWindow(before, Screen, Maximize);
         }
         catch (Exception e)
         {
-            Log.Error($"run: {File} {Arguments}", e);
+            Log.Error($"run: {file} {args}", e);
         }
+    }
+
+    static bool IsUrl(string s) => s.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || s.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// A link would open as a tab in an existing browser window, leaving nothing new to move,
+    /// so ask the browser for a new window.
+    /// </summary>
+    (string File, string Arguments) InNewWindow()
+    {
+        if (IsUrl(File) && DefaultApps.Browser() is { } browser)
+            return (browser, $"--new-window {File}");
+        string name = Path.GetFileNameWithoutExtension(File).ToLowerInvariant();
+        if (IsUrl(Arguments) && BrowserNames.Any(name.Contains))
+            return (File, $"--new-window {Arguments}");
+        return (File, Arguments);
     }
 }
 
