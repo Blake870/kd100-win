@@ -267,7 +267,7 @@ const I18N = {
     menuTitle: "Radial menu", menuHint2: "Hold the assigned button, turn the dial to pick an item, release the button to run it.",
     items: "Items", addItem: "+ Add item", label: "Label", icon: "Icon (optional)", deleteMenu: "Delete menu",
     usedBy: "Used by", unused: "Not assigned to any button yet: open a profile, pick a button and add “Menu on dial”.",
-    newMenu: "new-menu", newItem: "New item", menuName: "Menu name",
+    newMenu: "new-menu", newItem: "New item", menuName: "Menu name", iconFailed: "Could not read this image",
     language: "Language", languageHint: "Language of this window and the tray menu.", auto: "Automatic",
     osd: "On-screen hints", osdHint: "Show a short popup when the profile, dial mode or layer changes.",
     holdMs: "Hold time", holdMsHint: "How long to hold a button for its “Hold” action.",
@@ -317,7 +317,7 @@ const I18N = {
     menuTitle: "Круговое меню", menuHint2: "Зажмите назначенную кнопку, крутите колесо до нужного пункта и отпустите кнопку.",
     items: "Пункты", addItem: "+ Добавить пункт", label: "Подпись", icon: "Значок (необязательно)", deleteMenu: "Удалить меню",
     usedBy: "Используется", unused: "Пока не назначено ни на одну кнопку: откройте профиль, выберите кнопку и добавьте «Меню на колесе».",
-    newMenu: "новое-меню", newItem: "Новый пункт", menuName: "Название меню",
+    newMenu: "новое-меню", newItem: "Новый пункт", menuName: "Название меню", iconFailed: "Не удалось прочитать картинку",
     language: "Язык", languageHint: "Язык этого окна и меню в трее.", auto: "Автоматически",
     osd: "Подсказки на экране", osdHint: "Показывать короткую подсказку при смене профиля, режима колеса или слоя.",
     holdMs: "Время удержания", holdMsHint: "Сколько держать кнопку, чтобы сработало «Удержание».",
@@ -1046,7 +1046,7 @@ function renderMenu(main) {
       h("div", { class: "action" },
         h("input", { type: "text", value: it.label ?? "", placeholder: t("label"), style: "font-weight:600", oninput: e => { it.label = e.target.value; changed(); preview(); drawIcon(); } }),
         actionField(it.action ?? "", v => { it.action = v; changed(); drawIcon(); preview(); }),
-        h("div", { class: "line" }, iconInput, h("button", { class: "btn small", onclick: async () => { const f = await call("browse", { kind: "icon" }); if (f) { it.icon = f; iconInput.value = f; changed(); drawIcon(); preview(); } } }, t("browse")))),
+        h("div", { class: "line" }, iconInput, h("button", { class: "btn small", onclick: async () => { const f = await pickIcon(); if (f) { it.icon = f; iconInput.value = f; changed(); drawIcon(); preview(); } } }, t("browse")))),
       h("div", { class: "tools" },
         h("button", { class: "icon-btn", onclick: e => { e.stopPropagation(); move(-1); } }, "↑"),
         h("button", { class: "icon-btn", onclick: e => { e.stopPropagation(); move(1); } }, "↓"),
@@ -1063,6 +1063,26 @@ function renderMenu(main) {
       list,
       h("button", { class: "btn small", onclick: () => { if (items.length >= 12) return toast("2–12"); items.push({ label: t("newItem"), action: "run:notepad.exe" }); view.item = items.length - 1; changed(true); } }, t("addItem"))),
     pv));
+}
+
+/** Lets the user pick an icon; images Windows cannot read itself (WebP, SVG, AVIF) are converted to PNG. */
+async function pickIcon() {
+  const path = await call("browse", { kind: "icon" });
+  if (!path || /\.(png|jpe?g|bmp|ico|exe|dll)$/i.test(path)) return path;
+  try {
+    const src = await call("readImage", { path });
+    const img = new Image();
+    await new Promise((ok, fail) => { img.onload = ok; img.onerror = () => fail(new Error("decode")); img.src = src; });
+    const size = 128, canvas = document.createElement("canvas");
+    canvas.width = canvas.height = size;
+    const k = Math.min(size / (img.naturalWidth || size), size / (img.naturalHeight || size));
+    const w = (img.naturalWidth || size) * k, hgt = (img.naturalHeight || size) * k;
+    canvas.getContext("2d").drawImage(img, (size - w) / 2, (size - hgt) / 2, w, hgt);
+    return await call("saveIcon", { name: path.split(/[\\/]/).pop(), data: canvas.toDataURL("image/png") });
+  } catch {
+    toast(t("iconFailed"));
+    return null;
+  }
 }
 
 function radialPreview(items, sel) {

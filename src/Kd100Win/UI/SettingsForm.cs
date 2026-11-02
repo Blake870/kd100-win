@@ -182,6 +182,10 @@ internal sealed class SettingsForm : Form
                 }
             case "browse":
                 return Browse(args["kind"]?.GetValue<string>() ?? "program");
+            case "readImage":
+                return ReadImage(args["path"]!.GetValue<string>());
+            case "saveIcon":
+                return SaveIcon(args["name"]!.GetValue<string>(), args["data"]!.GetValue<string>());
             case "setAutostart":
                 Autostart.Enabled = args["on"]!.GetValue<bool>();
                 return Autostart.Enabled;
@@ -248,11 +252,40 @@ internal sealed class SettingsForm : Form
         using var dialog = new OpenFileDialog
         {
             Filter = kind == "icon"
-                ? "Icons and images|*.ico;*.png;*.jpg;*.jpeg;*.bmp;*.exe;*.dll|All files|*.*"
+                ? "Icons and images|*.ico;*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp;*.svg;*.avif;*.exe;*.dll|All files|*.*"
                 : "Programs|*.exe;*.lnk;*.bat;*.cmd;*.ps1|All files|*.*",
             DereferenceLinks = false,
         };
         return dialog.ShowDialog(this) == DialogResult.OK ? dialog.FileName : null;
+    }
+
+    /// <summary>Hands an image to the page, which can decode formats GDI+ cannot (WebP, SVG, AVIF).</summary>
+    static string ReadImage(string path)
+    {
+        string mime = Path.GetExtension(path).ToLowerInvariant() switch
+        {
+            ".webp" => "image/webp",
+            ".svg" => "image/svg+xml",
+            ".avif" => "image/avif",
+            ".gif" => "image/gif",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            _ => "image/png",
+        };
+        return $"data:{mime};base64,{Convert.ToBase64String(File.ReadAllBytes(path))}";
+    }
+
+    /// <summary>Stores a PNG rendered by the page in %APPDATA%\kd100-win\icons and returns its path.</summary>
+    static string SaveIcon(string name, string dataUrl)
+    {
+        const string prefix = "data:image/png;base64,";
+        if (!dataUrl.StartsWith(prefix, StringComparison.Ordinal))
+            throw new ArgumentException("expected a PNG data URL");
+        string folder = Path.Combine(AppPaths.DataFolder, "icons");
+        Directory.CreateDirectory(folder);
+        string safe = string.Concat(Path.GetFileNameWithoutExtension(name).Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+        string path = Path.Combine(folder, (safe.Length > 0 ? safe : "icon") + ".png");
+        File.WriteAllBytes(path, Convert.FromBase64String(dataUrl[prefix.Length..]));
+        return path;
     }
 
     static void Launch(string target) =>
