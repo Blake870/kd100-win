@@ -24,7 +24,9 @@ menu on the dial, a second layer, and a visual settings window.
   files or links (in the default browser or a chosen one), media and volume keys,
   mouse buttons, scrolling.
 - **Settings window** (English / Russian) with a picture of the device: press a key on
-  the KD100 and it is selected; shortcuts are recorded by pressing them.
+  the KD100 and it is selected; shortcuts are recorded by pressing them; drag a key onto
+  another to swap them; pick programs from a searchable list of installed apps.
+- **Open programs and sites on a chosen monitor**, optionally maximized.
 - Settings live in a readable, commented JSON file; edits are applied on save.
 - On-screen hints when the profile, dial mode or layer changes. Start with Windows from the tray menu.
 
@@ -130,6 +132,7 @@ a notification explains where and the previous settings stay active.
 | `text:Hello` | Types the text (any language, independent of the keyboard layout). |
 | `run:notepad.exe` | Starts a program, opens a folder, file or URL. Quote paths with spaces: `run:"C:\Program Files\App\app.exe" --arg`. |
 | `run:https://…` | Opens a link in the default browser. `run:chrome https://…` uses a specific browser. |
+| `run@2,max:…` | Same as `run:`, then moves the new window to monitor 2 (numbered left to right) and maximizes it. Links open in a new browser window. |
 | `wheel:down` | Scrolls (`up`, `down`, `left`, `right`). `wheel:down:40` scrolls less; 120 is one notch. |
 | `mouse:left` | Mouse button (`left`, `right`, `middle`, `back`, `forward`), held while the key is held. |
 | `media_play_pause` | Media keys: `media_next`, `media_prev`, `media_stop`, `volume_up`, `volume_down`, `volume_mute`. |
