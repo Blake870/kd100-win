@@ -49,7 +49,11 @@ internal sealed class TrayApp : ApplicationContext
 
         _devices = new DeviceManager();
         _devices.ReportReceived += OnReport;
-        _devices.ConnectionCountChanged += _ => UpdateTooltip();
+        _devices.ConnectionCountChanged += _ =>
+        {
+            UpdateTooltip();
+            _settings?.OnDeviceConnectionChanged();
+        };
 
         _foreground = new ForegroundWatcher();
         _foreground.Changed += _mapper.OnForegroundProcess;
@@ -210,7 +214,7 @@ internal sealed class TrayApp : ApplicationContext
     {
         if (_settings == null || _settings.IsDisposed)
         {
-            _settings = new SettingsForm(_store, _icon);
+            _settings = new SettingsForm(_store, _devices, _icon);
             _settings.FormClosed += (_, _) => _settings = null;
         }
         _settings.Show();

@@ -32,13 +32,15 @@ internal sealed class SettingsForm : Form
     ];
 
     readonly ConfigStore _store;
+    readonly DeviceManager _devices;
     readonly WebView2 _web = new() { Dock = DockStyle.Fill };
     bool _ready;
     bool _dirty;
 
-    public SettingsForm(ConfigStore store, Icon icon)
+    public SettingsForm(ConfigStore store, DeviceManager devices, Icon icon)
     {
         _store = store;
+        _devices = devices;
         Text = "kd100-win";
         Icon = icon;
         StartPosition = FormStartPosition.CenterScreen;
@@ -97,6 +99,13 @@ internal sealed class SettingsForm : Form
             _web.CoreWebView2.PostWebMessageAsJson("""{"event":"configChanged"}""");
     }
 
+    /// <summary>Tells the page a KD100 was plugged in or out, so it can refresh the device settings.</summary>
+    public void OnDeviceConnectionChanged()
+    {
+        if (_ready)
+            _web.CoreWebView2.PostWebMessageAsJson("""{"event":"deviceChanged"}""");
+    }
+
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
         if (_dirty && _ready && e.CloseReason == CloseReason.UserClosing)
@@ -116,7 +125,7 @@ internal sealed class SettingsForm : Form
         base.OnFormClosing(e);
     }
 
-    void OnMessage(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+    async void OnMessage(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
     {
         JsonNode? id = null;
         try
@@ -126,12 +135,17 @@ internal sealed class SettingsForm : Form
             string method = request["method"]!.GetValue<string>();
             var args = request["args"] as JsonObject ?? new JsonObject();
             object? result = Dispatch(method, args);
+            if (result is Task<object?> task)
+                result = await task;
+            if (IsDisposed)
+                return;
             Reply(id, true, result, null);
         }
         catch (Exception ex)
         {
             Log.Error("settings bridge", ex);
-            Reply(id, false, null, ex.Message);
+            if (!IsDisposed)
+                Reply(id, false, null, ex.Message);
         }
     }
 
@@ -193,6 +207,10 @@ internal sealed class SettingsForm : Form
             case "setAutostart":
                 Autostart.Enabled = args["on"]!.GetValue<bool>();
                 return Autostart.Enabled;
+            case "device":
+                return DeviceSettingsAsync(null, null);
+            case "setDevice":
+                return DeviceSettingsAsync(args["brightness"]?.GetValue<int>(), args["sleep"]?.GetValue<int>());
             case "dirty":
                 _dirty = args["dirty"]!.GetValue<bool>();
                 return null;
@@ -249,6 +267,20 @@ internal sealed class SettingsForm : Form
         string text = "// kd100-win configuration, written by the settings window. Format: see README.md." + Environment.NewLine + json + Environment.NewLine;
         File.WriteAllText(_store.Path, text);
         return new { ok = true };
+    }
+
+    /// <summary>Reads the brightness and sleep time from a KD100 on the cable, changing them first if given.</summary>
+    async Task<object?> DeviceSettingsAsync(int? brightness, int? sleep)
+    {
+        string? path = _devices.CablePath;
+        if (path == null)
+            return new { cable = false, connected = _devices.ConnectionCount > 0 };
+        var values = await Task.Run(() => brightness == null && sleep == null
+            ? DeviceSettings.Read(path)
+            : DeviceSettings.Apply(path, brightness, sleep));
+        if (brightness != null || sleep != null)
+            Log.Info($"Device settings: brightness {values.Brightness}, sleep {values.SleepMinutes} min");
+        return new { cable = true, connected = true, brightness = values.Brightness, sleep = values.SleepMinutes };
     }
 
     string? Browse(string kind)

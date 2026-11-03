@@ -280,6 +280,12 @@ const I18N = {
     holdMs: "Hold time", holdMsHint: "How long to hold a button for its “Hold” action.",
     doubleMs: "Double-click time", doubleMsHint: "How long to wait for the second press. Single clicks on such buttons fire after this delay.",
     autostart: "Start with Windows", autostartHint: "Start kd100-win when you sign in.",
+    device: "KD100", deviceHint: "These are stored in the KD100 itself and change right away. They can only be changed while it is connected with the USB cable.",
+    devCable: "Connected by cable.", devWireless: "Connected through the receiver: plug in the USB cable to change these.", devNone: "The KD100 is not connected.",
+    devReading: "Reading the KD100…", devError: "Could not talk to the KD100: {0}", devSaved: "Saved in the KD100",
+    brightness: "LED brightness", brightnessHint: "“Off” turns the light off completely.", ledOff: "Off", ledMax: "{0} (max)",
+    sleepTime: "Turn off after", sleepTimeHint: "How long the KD100 waits unused before it goes to sleep to save the battery.",
+    never: "Never", min: "{0} min", hr: "{0} h",
     configFile: "Configuration file", openFile: "Open in editor", resetAll: "Reset everything to defaults",
     confirmReset: "Replace all settings with the defaults? You can still Revert before saving.",
     loadError: "The configuration file has errors, the editor shows it as far as it could be read:",
@@ -335,6 +341,12 @@ const I18N = {
     holdMs: "Время удержания", holdMsHint: "Сколько держать кнопку, чтобы сработало «Удержание».",
     doubleMs: "Время двойного клика", doubleMsHint: "Сколько ждать второго нажатия. Одиночный клик на таких кнопках срабатывает после этой паузы.",
     autostart: "Запускать вместе с Windows", autostartHint: "Запускать kd100-win при входе в систему.",
+    device: "KD100", deviceHint: "Эти настройки хранятся в самом KD100 и применяются сразу. Менять их можно только при подключении USB-кабелем.",
+    devCable: "Подключён кабелем.", devWireless: "Подключён через приёмник: подключите USB-кабель, чтобы изменить эти настройки.", devNone: "KD100 не подключён.",
+    devReading: "Читаю настройки KD100…", devError: "Не удалось связаться с KD100: {0}", devSaved: "Сохранено в KD100",
+    brightness: "Яркость подсветки", brightnessHint: "«Выкл» полностью гасит светодиод.", ledOff: "Выкл", ledMax: "{0} (макс.)",
+    sleepTime: "Выключаться через", sleepTimeHint: "Сколько KD100 ждёт без нажатий, прежде чем уснуть ради экономии батареи.",
+    never: "Никогда", min: "{0} мин", hr: "{0} ч",
     configFile: "Файл конфигурации", openFile: "Открыть в редакторе", resetAll: "Сбросить всё к настройкам по умолчанию",
     confirmReset: "Заменить все настройки стандартными? До сохранения можно нажать «Отменить».",
     loadError: "В файле конфигурации есть ошибки, редактор показывает то, что удалось прочитать:",
@@ -372,6 +384,7 @@ host?.addEventListener("message", e => {
 
 // Lets the page run in a normal browser for development.
 let MOCK = null;
+const MOCK_DEVICE = { cable: true, connected: true, brightness: 8, sleep: 120 };
 function mockCall(method, args) {
   switch (method) {
     case "init": return { config: structuredClone(MOCK), path: "C:\\Users\\you\\AppData\\Roaming\\kd100-win\\config.json", autostart: false, systemLanguage: navigator.language.startsWith("ru") ? "ru" : "en", keys: [], version: "dev" };
@@ -385,6 +398,11 @@ function mockCall(method, args) {
       { name: "Calculator", target: "shell:AppsFolder\\Microsoft.WindowsCalculator_8wekyb3d8bbwe!App", exe: null }];
     case "browse": return "C:\\Program Files\\App\\app.exe";
     case "setAutostart": return args.on;
+    case "device": return { ...MOCK_DEVICE };
+    case "setDevice":
+      if (args.brightness != null) MOCK_DEVICE.brightness = args.brightness;
+      if (args.sleep != null) MOCK_DEVICE.sleep = args.sleep;
+      return { ...MOCK_DEVICE };
     default: return null;
   }
 }
@@ -1320,6 +1338,7 @@ function renderGeneral(main) {
     setting(t("holdMs"), t("holdMsHint"), range("holdMs", 150, 1500, 400)),
     setting(t("doubleMs"), t("doubleMsHint"), range("doubleMs", 150, 800, 300)),
     setting(t("autostart"), t("autostartHint"), sw(info.autostart, async v => { info.autostart = await call("setAutostart", { on: v }); }))));
+  main.append(deviceCard());
   main.append(h("div", { class: "card" },
     h("h2", {}, t("configFile")), h("div", { class: "path", style: "margin:6px 0 10px" }, info.path ?? ""),
     h("div", { class: "row" },
@@ -1327,6 +1346,34 @@ function renderGeneral(main) {
       h("button", { class: "btn danger", onclick: async () => { if (!confirm(t("confirmReset"))) return; config = await call("sample"); applyLanguage(); changed(true); } }, t("resetAll"))),
     h("div", { class: "hint", style: "margin-top:12px" }, "kd100-win " + (info.version ?? ""))));
 }
+// Brightness and sleep time live in the device, not in the config file: they are applied at once.
+const LED_LEVELS = [0, 1, 2, 4, 8, 16];
+const SLEEP_MINUTES = [15, 30, 60, 90, 120, 0];
+function deviceCard() {
+  const card = h("div", { class: "card" }, h("h2", {}, t("device")), h("div", { class: "hint", style: "margin-top:6px" }, t("devReading")));
+  call("device").then(d => fillDevice(card, d), e => fillDevice(card, null, e.message));
+  return card;
+}
+function fillDevice(card, d, error) {
+  const status = error ? t("devError", error) : d.cable ? t("devCable") : d.connected ? t("devWireless") : t("devNone");
+  const apply = async args => {
+    card.querySelectorAll("select").forEach(s => s.disabled = true);
+    try { fillDevice(card, await call("setDevice", args)); toast(t("devSaved")); }
+    catch (e) { fillDevice(card, null, e.message); }
+  };
+  const ledLabel = (v, i) => v === 0 ? t("ledOff") : i === LED_LEVELS.length - 1 ? t("ledMax", i) : String(i);
+  const sleepLabel = m => m === 0 ? t("never") : m < 60 ? t("min", m) : t("hr", String(m / 60).replace(".", lang === "ru" ? "," : "."));
+  const led = select(LED_LEVELS.map((v, i) => [v, ledLabel(v, i)]), d?.cable ? d.brightness : "", v => apply({ brightness: +v }));
+  const sleep = select(SLEEP_MINUTES.map(m => [m, sleepLabel(m)]), d?.cable ? d.sleep : "", v => apply({ sleep: +v }));
+  led.disabled = sleep.disabled = !d?.cable;
+  card.replaceChildren(
+    h("h2", {}, t("device")),
+    h("div", { class: "hint", style: "margin:6px 0 2px" }, t("deviceHint")),
+    h("div", { class: "hint" }, status),
+    setting(t("brightness"), t("brightnessHint"), led),
+    setting(t("sleepTime"), t("sleepTimeHint"), sleep));
+}
+
 function setting(title, hint, control) {
   return h("div", { class: "setting" }, h("div", { class: "txt" }, h("b", {}, title), h("span", { class: "hint" }, hint)), control);
 }
@@ -1407,6 +1454,8 @@ function onHostEvent(m) {
       if (JSON.stringify(fresh.config) === saved) return;
       if (!isDirty()) reload(); else { info.changedOnDisk = true; render(); }
     });
+  } else if (m.event === "deviceChanged") {
+    if (view.kind === "general") render();
   } else if (m.event === "saveAndClose") {
     save().then(ok => ok && call("close"));
   }

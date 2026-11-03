@@ -28,6 +28,19 @@ internal sealed class DeviceManager : IDisposable
         get { lock (_lock) return _open.Count; }
     }
 
+    /// <summary>
+    /// The vendor collection of a KD100 connected by cable, or null. Over the cable MI_00 is split
+    /// into collections (…&amp;col01); through the receiver it is not.
+    /// </summary>
+    public string? CablePath
+    {
+        get
+        {
+            lock (_lock)
+                return _open.Keys.FirstOrDefault(p => p.Contains("&col", StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     public void Rescan()
     {
         List<HidDevice> found;

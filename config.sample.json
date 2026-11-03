@@ -63,7 +63,7 @@
         "10": "media_prev",     "11": "volume_mute",
         "12": "alt+left",       "13": "alt+right",    "14": "win+shift+s",  "15": "enter",
         "16": "layer",          "17": "esc",
-        "dial": { "tap": "media_play_pause", "double": "media_next", "hold": "dial:next" }
+        "dial": { "tap": "media_play_pause", "double": "media_next" }
       },
       "dial": [
         { "name": "Volume",    "cw": "volume_up",    "ccw": "volume_down",  "acceleration": 2 },

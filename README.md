@@ -27,6 +27,8 @@ menu on the dial, a second layer, and a visual settings window.
   the KD100 and it is selected; shortcuts are recorded by pressing them; drag a key onto
   another to swap them; pick programs from a searchable list of installed apps.
 - **Open programs and sites on a chosen monitor**, optionally maximized.
+- **LED brightness and sleep time** of the KD100 (including LED off and never sleep), changed
+  while it is connected with the USB cable; the device remembers them.
 - Settings live in a readable, commented JSON file; edits are applied on save.
 - On-screen hints when the profile, dial mode or layer changes. Start with Windows from the tray menu.
 
@@ -71,13 +73,17 @@ The default configuration:
 
 | | Default | Browser | Premiere Pro |
 |---|---|---|---|
-| Dial | volume (hold the dial button for scroll, zoom, undo history) | scroll, volume, tabs, zoom, seek | frames, edit points, timeline zoom |
-| Dial button | click: play/pause, double: next track, hold: next dial mode | same as Default | next dial mode |
+| Dial | volume (scroll, zoom and undo history are in the tray menu → Dial mode) | scroll, volume, tabs, zoom, seek | frames, edit points, timeline zoom |
+| Dial button | click: play/pause, double: next track | same as Default | next dial mode |
 | Key 0 | undo; **hold + turn the dial: radial menu** | back; hold + dial: radial menu | selection tool |
 | Key 16 | hold for layer 2 | hold for layer 2 | hold for layer 2 |
 
 Everything can be changed in the settings window. While the settings window is in front,
 the KD100 does not send any input; it only highlights the key you press.
+
+**Settings → General → KD100** sets the LED brightness (off, 1–5) and how long the KD100 waits
+unused before it goes to sleep (15 min to 2 h, or never). These are stored in the device and
+apply at once. The KD100 only accepts them over the USB cable and keeps them after it is unplugged.
 
 The tray menu also has an **input monitor** that shows each key and dial step with the action
 it ran, plus the log.

@@ -26,12 +26,19 @@ internal static partial class NativeHid
     public static void GetIndexedString(string devicePath, int index)
     {
         using var handle = Open(devicePath);
+        GetIndexedString(handle, index);
+    }
+
+    /// <summary>Reads a string descriptor on an open handle and returns its raw bytes.</summary>
+    public static byte[] GetIndexedString(SafeFileHandle handle, int index)
+    {
         Span<byte> buffer = stackalloc byte[256];
         if (!HidD_GetIndexedString(handle, (uint)index, buffer, (uint)buffer.Length))
             throw new Win32Exception(Marshal.GetLastPInvokeError());
+        return buffer[..16].ToArray();
     }
 
-    static SafeFileHandle Open(string path)
+    public static SafeFileHandle Open(string path)
     {
         // Same fallback as hidapi: some collections only open without access rights.
         var h = CreateFile(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);

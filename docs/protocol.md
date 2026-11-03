@@ -171,19 +171,40 @@ Disassembling the core shows a command dispatcher (UI command → string index):
 | `0xA0` / `0xB1` | 0 → `0xE3`, 1 → `0xE1`, 2 → `0xE2` (query) | query fails |
 | — | `0xE0`, `0xE4`, `0xE8` | `0xE0` fails |
 
-The UI sends `0xA0` from its "sleep time" control, so `0xE1`–`0xE3` are sleep settings;
-the KD100 does not answer the `0xE2` query, which fits the Huion app not showing sleep time
-for this device.
+### LED brightness (`0xD7` / `0xD8` / `0xD9`)
 
-**Experiment:** sending `0xDB` ×10 and `0xD8` ×4 (and later `0xDA` ×10, `0xD7` ×4) left
-the queried values (15 and 8) unchanged, but afterwards the dial behaved differently under
-the Huion driver (it zoomed), and the opposite steps did not undo that. The LED did not change.
-Under kd100-win this does not matter: in vendor mode the app decides what the dial does.
+The "LED brightness" slider sends UI command `0x61` once per step (+1 → `0xD7`, −1 → `0xD8`).
+Reading `0xD9` returns the level as one byte. The levels in step order are `0` (LED off), `1`, `2`,
+`4`, `8` (factory setting) and `16`. Stepping up from 16 leaves it at 16. Like the
+sleep time, this only works over the cable, and the setting is kept after unplugging.
 
-No command for the LED was found. The battery level shown by the Huion app (90% at the time)
-is not any of the values above; where it comes from is still unknown. While the "dial
-sensitivity" slider was being moved in the Huion UI, the driver sent `0xD8`/`0xD7` and `0xDA`
-steps, so those two groups are most likely dial settings, not the LED.
+### Sleep time (`0xDA` / `0xDB` / `0xDC`)
+
+The "Sleep time" list in `HuionTablet.exe` has the options Never, 15 min, 30 min, 1 h, 1.5 h
+and 2 h (indices 0–5). Picking one sends UI command `0x71` once per step of the difference
+(+1 → `0xDA`, −1 → `0xDB`, 50 ms apart). Reading `0xDC` returns the time in minutes as one byte:
+`0` (never), `15`, `30`, `60`, `90` or `120`.
+
+The Huion app says brightness and sleep time can only be changed over the cable, and that
+matches the device. Over the cable, `0xDC` went 15 → 30 → 60 → 90 → 120 with one `0xDA` each.
+Through the 2.4 GHz receiver, `0xDA` replies 1 but `0xDC` keeps answering `15`, even after the
+change was made over the cable. The receiver seems to answer with its own value.
+
+**Delayed replies.** Sometimes each request is answered with the reply to the previous one.
+For example, after hidapi enumerated the device (which reads the product string), the next
+`0xD9` returned `Huion Tablet_KD100`. kd100-win therefore sends every query twice and uses the
+second answer.
+
+### Other findings
+
+Sending `0xDB` ×10 and `0xD8` ×4 (and later `0xDA` ×10, `0xD7` ×4) through the receiver left
+the queried values unchanged and did not change the LED, as expected for cable-only settings.
+Afterwards the dial zoomed under the Huion driver. That is probably unrelated (a dial setting
+picked in the Huion app at the same time) and does not matter under kd100-win.
+
+What `0xCE`–`0xD0`, `0xD3`/`0xD4`, `0xE1`–`0xE3` and `0xE6`/`0xE7` do is not known. The battery
+level shown by the Huion app (90% at the time) is not any of the values above; where it comes
+from is still unknown.
 
 ## Coexistence with the Huion driver
 
