@@ -12,7 +12,7 @@
     <RootNamespace>Kd100Win</RootNamespace>
     <Product>kd100-win</Product>
     <Description>Open-source tray app for the Huion Keydial Mini KD100</Description>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <ApplicationIcon>..\..\assets\kd100-win.ico</ApplicationIcon>
   </PropertyGroup>
 
